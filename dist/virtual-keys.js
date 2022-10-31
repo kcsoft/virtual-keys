@@ -205,8 +205,9 @@ class VirtualKeysPanel extends LitElement {
         flex: 1 1 1e-9px;
       }
       .filters {
-        display: flex;
         align-items: flex-end;
+        display: flex;
+        flex-wrap: wrap;
         padding: 8px 16px 0px;
       }
       .filters > * {
