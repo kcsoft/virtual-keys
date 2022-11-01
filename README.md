@@ -38,3 +38,19 @@ panel_custom:
 ```
 
 * restart Home Assistant
+
+# Use case
+
+I want to share a "virtual key" with my friends that is valid for a limited time and that they can use to access specific entities in Home Assistant like the fron gate. The key is actually a link to my Home Assistant that can be opened in a browser.
+
+To make this work, I need to make some additional steps (after installing Virtual Keys):
+
+* create a new user in Home Assistant eg. "guest"
+
+* create a new group eg. "guests" and add the user "guest" to it, and also the devices you want to give access to, eg "cover.front_gate", instructions [here](https://developers.home-assistant.io/blog/2019/03/11/user-permissions/)
+
+* create a new View (tab) in the default Lovelace UI and add the entities you want to give access to, eg. "cover.front_gate", set the visibility to only show to user "guest".
+
+* install [kiosk-mode](https://github.com/NemesisRE/kiosk-mode) and configure it set "kiosk" mode for user "guest"
+
+Ths is it, you can now create Virtual Keys and share the link.
