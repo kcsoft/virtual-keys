@@ -123,9 +123,12 @@ class VirtualKeysPanel extends LitElement {
     });
   }
 
+  getLoginUrl(token) {
+    return this.hass.hassUrl() + 'local/community/virtual-keys/login.html?token=' + token.jwt_token;
+  }
+
   listItemClick(e, token) {
-    const tokenLoginUrl = this.hass.hassUrl() + 'local/community/virtual-keys/login.html?token=' + token.jwt_token;
-    navigator.clipboard.writeText(tokenLoginUrl);
+    navigator.clipboard.writeText(this.getLoginUrl(token));
     this.showAlert('Copied to clipboard ' + token.name);
   }
 
@@ -161,7 +164,7 @@ class VirtualKeysPanel extends LitElement {
             <mwc-list>
               ${this.tokens.map(token => html`
                 <mwc-list-item hasMeta twoline @click=${e => this.listItemClick(e, token)}>
-                  <span>${token.name}</span>
+                  <a href="${this.getLoginUrl(token)}">${token.name}</a>
                   <span slot="secondary">${token.user}, Expire: ${humanSeconds(token.remaining)}</span>
                   <mwc-icon slot="meta" @click=${e => this.deleteClick(e, token)}>${this.deleteButton()}</mwc-icon>
                 </mwc-list-item>
