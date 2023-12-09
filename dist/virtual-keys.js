@@ -38,7 +38,7 @@ class VirtualKeysPanel extends LitElement {
     // form inputs
     this.name = '';
     this.user = '';
-    this.expire = 0;
+    this.expire = 60;
   }
 
   fetchUsers() {
@@ -174,7 +174,7 @@ class VirtualKeysPanel extends LitElement {
             >
             </ha-combo-box>
 
-            <ha-textfield label="Expire (minutes)" type="number" value="60" @input="${this.expireChanged}"></ha-textfield>
+            <ha-textfield label="Expire (minutes)" type="number" value="${this.expire}"" @input="${this.expireChanged}"></ha-textfield>
 
             <mwc-button raised label="Add" @click=${this.addClick}></mwc-button>
           </div>
