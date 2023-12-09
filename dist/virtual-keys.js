@@ -84,6 +84,10 @@ class VirtualKeysPanel extends LitElement {
     this.expire = e.target.value;
   }
 
+  toggleSideBar() {
+    this.dispatchEvent(new Event('hass-toggle-menu', { bubbles: true, composed: true}));
+  }
+
   addClick() {
     this.hass.callWS({
       type: 'virtual_keys/create_token',
@@ -98,7 +102,7 @@ class VirtualKeysPanel extends LitElement {
   }
 
   deleteButton() {
-    return html`<svg preserveAspectRatio="xMidYMid meet" focusable="false" role="img" aria-hidden="true" viewBox="0 0 24 24">
+    return html`<svg preserveAspectRatio="xMidYMid meet" focusable="false" role="img" aria-hidden="true" viewBox="0 0 24 24" width="24" height="24">
         <g><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"></path></g>
       </svg>`;
   }
@@ -123,24 +127,42 @@ class VirtualKeysPanel extends LitElement {
     });
   }
 
+  getLoginUrl(token) {
+    return this.hass.hassUrl() + 'local/community/virtual-keys/login.html?token=' + token.jwt_token;
+  }
+
   listItemClick(e, token) {
-    const tokenLoginUrl = this.hass.hassUrl() + 'local/community/virtual-keys/login.html?token=' + token.jwt_token;
-    navigator.clipboard.writeText(tokenLoginUrl);
+    navigator.clipboard.writeText(this.getLoginUrl(token));
     this.showAlert('Copied to clipboard ' + token.name);
   }
 
   render() {
     return html`
-      <ha-app-layout>
-        <app-header slot="header" fixed>
-          <app-toolbar>
-            <div main-title>${this.panel.title}</div>
-          </app-toolbar>
-        </app-header>
+      <div>
+        <header class="mdc-top-app-bar mdc-top-app-bar--fixed">
+          <div class="mdc-top-app-bar__row">
+            <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start" id="navigation">
+              <div>
+                <mwc-icon-button title="Sidebar Toggle" @click=${this.toggleSideBar}>
+                  <svg preserveAspectRatio="xMidYMid meet" focusable="false" role="img" aria-hidden="true" viewBox="0 0 24 24">
+                    <g><path class="primary-path" d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"></path></g>
+                  </svg>
+                </mwc-icon-button>
+              </div>
 
-        <div class="flex content">
+              <span class="mdc-top-app-bar__title">
+                ${this.panel.title}
+              </span>
+            </section>
+            <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" id="actions" role="toolbar">
+              <slot name="actionItems"></slot>
+            </section>
+          </div>
+        </header>
+
+        <div class="mdc-top-app-bar--fixed-adjust flex content">
           <div class="filters">
-            <paper-input label="Key name" value="" @value-changed=${this.nameChanged} .error-message=${'aa'}></paper-input>
+            <ha-textfield label="Key name" value="" @input="${this.nameChanged}"></ha-textfield>
 
             <ha-combo-box
               .items=${this.users}
@@ -152,7 +174,7 @@ class VirtualKeysPanel extends LitElement {
             >
             </ha-combo-box>
 
-            <paper-input label="Expire (minutes)" type="number" value="60" @value-changed=${this.expireChanged}></paper-input>
+            <ha-textfield label="Expire (minutes)" type="number" value="60" @input="${this.expireChanged}"></ha-textfield>
 
             <mwc-button raised label="Add" @click=${this.addClick}></mwc-button>
           </div>
@@ -161,7 +183,7 @@ class VirtualKeysPanel extends LitElement {
             <mwc-list>
               ${this.tokens.map(token => html`
                 <mwc-list-item hasMeta twoline @click=${e => this.listItemClick(e, token)}>
-                  <span>${token.name}</span>
+                  <a href="${this.getLoginUrl(token)}">${token.name}</a>
                   <span slot="secondary">${token.user}, Expire: ${humanSeconds(token.remaining)}</span>
                   <mwc-icon slot="meta" @click=${e => this.deleteClick(e, token)}>${this.deleteButton()}</mwc-icon>
                 </mwc-list-item>
@@ -172,7 +194,7 @@ class VirtualKeysPanel extends LitElement {
 
       ${this.alert.length ? html`<ha-alert>${this.alert}</ha-alert>` : ''}
 
-      </ha-app-layout>
+      </div>
     `;
   }
 
@@ -180,6 +202,63 @@ class VirtualKeysPanel extends LitElement {
     return css`
       :host {
       }
+      .mdc-top-app-bar {
+        --mdc-typography-headline6-font-weight: 400;
+        color: var(--app-header-text-color,var(--mdc-theme-on-primary,#fff));
+        background-color: var(--app-header-background-color,var(--mdc-theme-primary));
+        width: var(--mdc-top-app-bar-width,100%);
+        display: flex;
+        position: fixed;
+        flex-direction: column;
+        justify-content: space-between;
+        box-sizing: border-box;
+        width: 100%;
+        z-index: 4;
+      }
+      .mdc-top-app-bar--fixed {
+        transition: box-shadow 0.2s linear 0s;
+      }
+      .mdc-top-app-bar--fixed-adjust {
+        padding-top: var(--header-height);
+      }
+      .mdc-top-app-bar__row {
+        height: var(--header-height);
+        border-bottom: var(--app-header-border-bottom);
+        display: flex;
+        position: relative;
+        box-sizing: border-box;
+        width: 100%;
+        height: 64px;
+      }
+      .mdc-top-app-bar__section--align-start {
+        justify-content: flex-start;
+        order: -1;
+      }
+      .mdc-top-app-bar__section {
+        display: inline-flex;
+        flex: 1 1 auto;
+        align-items: center;
+        min-width: 0px;
+        padding: 8px 12px;
+        z-index: 1;
+      }
+      .mdc-top-app-bar__title {
+        -webkit-font-smoothing: antialiased;
+        font-family: var(--mdc-typography-headline6-font-family,var(--mdc-typography-font-family,Roboto,sans-serif));
+        font-size: var(--mdc-typography-headline6-font-size,1.25rem);
+        line-height: var(--mdc-typography-headline6-line-height,2rem);
+        font-weight: var(--mdc-typography-headline6-font-weight,500);
+        letter-spacing: var(--mdc-typography-headline6-letter-spacing,.0125em);
+        text-decoration: var(--mdc-typography-headline6-text-decoration,inherit);
+        text-transform: var(--mdc-typography-headline6-text-transform,inherit);
+        padding-left: 20px;
+        padding-right: 0px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+        z-index: 1;
+      }
+
       app-header {
         background-color: var(--primary-color);
         color: var(--text-primary-color);
@@ -199,19 +278,26 @@ class VirtualKeysPanel extends LitElement {
         padding: 16px 0;
       }
       .content {
-        padding: 0 16px 16px;
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-bottom: 16px;
       }
       .flex {
         flex: 1 1 1e-9px;
       }
       .filters {
-        align-items: flex-end;
+        align-items: center;
         display: flex;
         flex-wrap: wrap;
         padding: 8px 16px 0px;
       }
       .filters > * {
         margin-right: 8px;
+      }
+      @media (min-width: 870px) {
+        mwc-icon-button {
+          display: none;
+        }
       }
     `;
   }
