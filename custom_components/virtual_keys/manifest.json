@@ -3,7 +3,7 @@
     "name": "Virtual Keys",
     "documentation": "https://github.com/kcsoft/virtual-keys",
     "issue_tracker": "https://github.com/kcsoft/virtual-keys/issues",
-    "codeowners": ["kcsoft"],
+    "codeowners": ["@kcsoft"],
     "iot_class": "local_push",
     "version": "0.2.0"
 }
