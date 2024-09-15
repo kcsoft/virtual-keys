@@ -6,14 +6,16 @@ import {
 
 function humanSeconds(seconds) {
   return [
-    [Math.floor(seconds / 31536000), 'year'],
-    [Math.floor((seconds % 31536000) / 86400), 'day'],
-    [Math.floor(((seconds % 31536000) % 86400) / 3600), 'hour'],
-    [Math.floor((((seconds % 31536000) % 86400) % 3600) / 60), 'minute'],
-    [(((seconds % 31536000) % 86400) % 3600) % 60, 'second'],
-  ].map(([value, label]) => {
-    return value > 0 ? `${value} ${label}${value !== 1 ? 's' : ''} ` : '';
-  }).join(' ');
+    [Math.floor(seconds / 31536000), "year"],
+    [Math.floor((seconds % 31536000) / 86400), "day"],
+    [Math.floor(((seconds % 31536000) % 86400) / 3600), "hour"],
+    [Math.floor((((seconds % 31536000) % 86400) % 3600) / 60), "minute"],
+    [(((seconds % 31536000) % 86400) % 3600) % 60, "second"],
+  ]
+    .map(([value, label]) => {
+      return value > 0 ? `${value} ${label}${value !== 1 ? "s" : ""} ` : "";
+    })
+    .join(" ");
 }
 
 class VirtualKeysPanel extends LitElement {
@@ -38,7 +40,7 @@ class VirtualKeysPanel extends LitElement {
     // form inputs
     this.name = "";
     this.user = "";
-    this.expire = 60;
+    this.expire = "";
     this.expirationDateTime = "";
     this.dashboard = "";
   }
@@ -87,6 +89,10 @@ class VirtualKeysPanel extends LitElement {
 
   nameChanged(e) {
     this.name = e.target.value;
+  }
+
+  dashboardChanged(e) {
+    this.dashboard = e.target.value;
   }
 
   expireChanged(e) {
@@ -223,47 +229,34 @@ class VirtualKeysPanel extends LitElement {
               @value-changed=${this.userChanged}
             >
             </ha-combo-box>
-            <ha-textfield
-              label="Dashboard ID"
-              value="dashboard-guest"
-              @input="${(e) => (this.dashboard = e.target.value)}"
-            ></ha-textfield> 
+            
+            <ha-textfield label="Dashboard" value="dashboard-guest" @input="${
+              this.dashboardChanged
+            }"></ha-textfield>
             
             <ha-textfield label="Expire (minutes)" type="number" value="${
               this.expire
             }"" @input="${this.expireChanged}"></ha-textfield>
-            
-            <ha-date-input
-              label="Expiration Date (optional)"
-              .value=${this.expirationDateTime.split("T")[0]}
-              @value-changed=${(e) => {
-                const date = e.detail.value;
-                const time = this.expirationDateTime.split("T")[1] || "00:00";
-                this.expirationDateTime = `${date}T${time}`;
-              }}
-            ></ha-date-input>
 
-            <ha-time-input
-              label="Expiration Time (optional)"
-              .hour=${parseInt(
-                this.expirationDateTime.split("T")[1]?.split(":")[0] || "00",
-                10
-              )}
-              .minute=${parseInt(
-                this.expirationDateTime.split("T")[1]?.split(":")[1] || "00",
-                10
-              )}
-              @value-changed=${(e) => {
+            <input type="date"
+            .value=${this.expirationDateTime.split("T")[0]}
+            @change=${(e) => {
+              const date = e.target.value;
+              const time = this.expirationDateTime.split("T")[1] || "00:00";
+              this.expirationDateTime = `${date}T${time}`;
+            }}
+            />
+            
+            <input type="time"
+              .value=${this.expirationDateTime.split("T")[1] || "00:00"}
+              @change=${(e) => {
+                const time = e.target.value;
                 const date =
                   this.expirationDateTime.split("T")[0] ||
                   new Date().toISOString().split("T")[0];
-                const { hour, minute } = e.detail;
-                this.expirationDateTime = `${date}T${String(hour).padStart(
-                  2,
-                  "0"
-                )}:${String(minute).padStart(2, "0")}`;
+                this.expirationDateTime = `${date}T${time}`;
               }}
-            ></ha-time-input>
+            />            
             <mwc-button raised label="Add" @click=${this.addClick}></mwc-button>
           </div>
 
@@ -416,4 +409,4 @@ class VirtualKeysPanel extends LitElement {
   }
 }
 
-customElements.define('virtual-keys-panel', VirtualKeysPanel);
+customElements.define("virtual-keys-panel", VirtualKeysPanel);
