@@ -215,7 +215,9 @@ class VirtualKeysPanel extends LitElement {
               .items=${this.users}
               .itemLabelPath=${"name"}
               .itemValuePath=${"id"}
-              .value="1"
+              .value=${
+                this.users.find((user) => user.name === "guest")?.id || ""
+              }
               .label=${"User"}
               @value-changed=${this.userChanged}
             >
@@ -225,12 +227,37 @@ class VirtualKeysPanel extends LitElement {
               this.expire
             }"" @input="${this.expireChanged}"></ha-textfield>
             
-            <ha-textfield 
-              label="Expiration Date and Time (optional)" 
-              type="datetime-local" 
-              value="${this.expirationDateTime}" 
-              @input="${this.expirationDateTimeChanged}">
-            </ha-textfield>
+            <ha-date-picker
+  label="Expiration Date (optional)"
+  .value=${this.expirationDateTime.split("T")[0]}
+  @value-changed=${(e) => {
+    const date = e.detail.value;
+    const time = this.expirationDateTime.split("T")[1] || "00:00";
+    this.expirationDateTime = `${date}T${time}`;
+  }}
+></ha-date-picker>
+
+<ha-time-input
+  label="Expiration Time (optional)"
+  .hour=${parseInt(
+    this.expirationDateTime.split("T")[1]?.split(":")[0] || "00",
+    10
+  )}
+  .minute=${parseInt(
+    this.expirationDateTime.split("T")[1]?.split(":")[1] || "00",
+    10
+  )}
+  @value-changed=${(e) => {
+    const date =
+      this.expirationDateTime.split("T")[0] ||
+      new Date().toISOString().split("T")[0];
+    const { hour, minute } = e.detail;
+    this.expirationDateTime = `${date}T${String(hour).padStart(
+      2,
+      "0"
+    )}:${String(minute).padStart(2, "0")}`;
+  }}
+></ha-time-input>
             <mwc-button raised label="Add" @click=${this.addClick}></mwc-button>
           </div>
 
