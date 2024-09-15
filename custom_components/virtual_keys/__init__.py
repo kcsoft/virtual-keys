@@ -68,7 +68,7 @@ async def list_users(
         vol.Required("user_id"): str,
         vol.Required("name"): str,  # token name
         vol.Optional("minutes"): int,  # minutes
-        vol.Optional("expiration"): str,  # expiration date and time in ISO format
+        vol.Optional("expiration"): str,  # expiration date and time in ISO-format
     }
 )
 @websocket_api.require_admin
