@@ -178,7 +178,7 @@ class VirtualKeysPanel extends LitElement {
       this.hass.hassUrl() +
       "local/community/virtual-keys/login.html?token=" +
       token.jwt_token;
-    return this.dashboard ? `${baseUrl}&dash=${this.dashboard}` : baseUrl;
+    return "{$baseUrl}&dash={$this.dashboard}";
   }
 
   listItemClick(e, token) {
