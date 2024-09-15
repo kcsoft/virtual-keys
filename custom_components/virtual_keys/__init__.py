@@ -7,6 +7,7 @@ from homeassistant.auth.models import TOKEN_TYPE_LONG_LIVED_ACCESS_TOKEN
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.components import websocket_api
 from homeassistant.util import dt as dt_util
+from datetime import datetime
 
 DOMAIN = "virtual_keys"
 
@@ -61,13 +62,13 @@ async def list_users(
 
     connection.send_result(msg["id"], result)
 
-
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "virtual_keys/create_token",
         vol.Required("user_id"): str,
-        vol.Required("name"): str, # token name
-        vol.Required("minutes"): int, # minutes
+        vol.Required("name"): str,  # token name
+        vol.Optional("minutes"): int,  # minutes
+        vol.Optional("expiration"): str,  # expiration date and time in ISO format
     }
 )
 @websocket_api.require_admin
@@ -85,11 +86,20 @@ async def create_token(
         return
 
     try:
+        expiration = None
+        if "minutes" in msg:
+            expiration = timedelta(minutes=msg["minutes"])
+        elif "expiration" in msg:
+            expiration = datetime.fromisoformat(msg["expiration"]) - datetime.now()
+
+        if expiration is None:
+            raise ValueError("Either 'minutes' or 'expiration' must be provided")
+
         refresh_token = await hass.auth.async_create_refresh_token(
             user,
             client_name=msg.get("name"),
             token_type=TOKEN_TYPE_LONG_LIVED_ACCESS_TOKEN,
-            access_token_expiration=timedelta(minutes=msg["minutes"]),
+            access_token_expiration=expiration,
         )
         access_token = hass.auth.async_create_access_token(refresh_token)
     except ValueError as err:
@@ -99,7 +109,6 @@ async def create_token(
         return
 
     connection.send_result(msg["id"], access_token)
-
 @websocket_api.websocket_command(
     {
         vol.Required("type"): "virtual_keys/delete_token",
