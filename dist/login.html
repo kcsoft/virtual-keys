@@ -4,10 +4,11 @@
     <script type="text/javascript">
       const hassUrl = window.location.protocol + '//' + window.location.host;
       const access_token = new URLSearchParams(window.location.search).get('token');
+      const dash = new URLSearchParams(window.location.search).get('dash');
       console.log('access_token', access_token);
       localStorage.setItem('hassTokens', JSON.stringify({ access_token: access_token, hassUrl: hassUrl }));
-      console.log('redirecting to ', hassUrl + '/dashboard-guest');
-      window.location.href = hassUrl + '/dashboard-guest';
+      console.log('redirecting to ', hassUrl + '/' + dash);
+      window.location.href = hassUrl + '/' + dash;
     </script>
   </body>
 </html>

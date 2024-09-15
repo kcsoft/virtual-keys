@@ -34,12 +34,14 @@ class VirtualKeysPanel extends LitElement {
     this.users = [];
     this.tokens = [];
     this.alert = "";
+    this.dashboards = [];
 
     // form inputs
     this.name = "";
     this.user = "";
     this.expire = 60;
     this.expirationDateTime = "";
+    this.selectedDashboard = "";
   }
 
   fetchUsers() {
@@ -73,9 +75,19 @@ class VirtualKeysPanel extends LitElement {
     });
   }
 
+  fetchDashboards() {
+    this.hass.callWS({ type: "lovelace/dashboards" }).then((dashboards) => {
+      this.dashboards = dashboards.map((dashboard) => ({
+        id: dashboard.url_path,
+        name: dashboard.title,
+      }));
+    });
+  }
+
   update(changedProperties) {
     if (changedProperties.has("hass") && this.hass) {
       this.fetchUsers();
+      this.fetchDashboards;
     }
     super.update(changedProperties);
   }
@@ -167,11 +179,13 @@ class VirtualKeysPanel extends LitElement {
   }
 
   getLoginUrl(token) {
-    return (
+    const baseUrl =
       this.hass.hassUrl() +
       "local/community/virtual-keys/login.html?token=" +
-      token.jwt_token
-    );
+      token.jwt_token;
+    return this.selectedDashboard
+      ? `${baseUrl}&dash=${this.selectedDashboard}`
+      : baseUrl;
   }
 
   listItemClick(e, token) {
@@ -222,42 +236,48 @@ class VirtualKeysPanel extends LitElement {
               @value-changed=${this.userChanged}
             >
             </ha-combo-box>
-
+            <ha-combo-box
+              .items=${this.dashboards}
+              .itemLabelPath=${"name"}
+              .itemValuePath=${"id"}
+              .label=${"Dashboard"}
+              @value-changed=${(e) => (this.selectedDashboard = e.detail.value)}
+            ></ha-combo-box>
             <ha-textfield label="Expire (minutes)" type="number" value="${
               this.expire
             }"" @input="${this.expireChanged}"></ha-textfield>
             
             <ha-date-picker
-  label="Expiration Date (optional)"
-  .value=${this.expirationDateTime.split("T")[0]}
-  @value-changed=${(e) => {
-    const date = e.detail.value;
-    const time = this.expirationDateTime.split("T")[1] || "00:00";
-    this.expirationDateTime = `${date}T${time}`;
-  }}
-></ha-date-picker>
+              label="Expiration Date (optional)"
+              .value=${this.expirationDateTime.split("T")[0]}
+              @value-changed=${(e) => {
+                const date = e.detail.value;
+                const time = this.expirationDateTime.split("T")[1] || "00:00";
+                this.expirationDateTime = `${date}T${time}`;
+              }}
+            ></ha-date-picker>
 
-<ha-time-input
-  label="Expiration Time (optional)"
-  .hour=${parseInt(
-    this.expirationDateTime.split("T")[1]?.split(":")[0] || "00",
-    10
-  )}
-  .minute=${parseInt(
-    this.expirationDateTime.split("T")[1]?.split(":")[1] || "00",
-    10
-  )}
-  @value-changed=${(e) => {
-    const date =
-      this.expirationDateTime.split("T")[0] ||
-      new Date().toISOString().split("T")[0];
-    const { hour, minute } = e.detail;
-    this.expirationDateTime = `${date}T${String(hour).padStart(
-      2,
-      "0"
-    )}:${String(minute).padStart(2, "0")}`;
-  }}
-></ha-time-input>
+            <ha-time-input
+              label="Expiration Time (optional)"
+              .hour=${parseInt(
+                this.expirationDateTime.split("T")[1]?.split(":")[0] || "00",
+                10
+              )}
+              .minute=${parseInt(
+                this.expirationDateTime.split("T")[1]?.split(":")[1] || "00",
+                10
+              )}
+              @value-changed=${(e) => {
+                const date =
+                  this.expirationDateTime.split("T")[0] ||
+                  new Date().toISOString().split("T")[0];
+                const { hour, minute } = e.detail;
+                this.expirationDateTime = `${date}T${String(hour).padStart(
+                  2,
+                  "0"
+                )}:${String(minute).padStart(2, "0")}`;
+              }}
+            ></ha-time-input>
             <mwc-button raised label="Add" @click=${this.addClick}></mwc-button>
           </div>
 
