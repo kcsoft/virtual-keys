@@ -35,50 +35,98 @@ class VirtualKeysPanel extends LitElement {
     super();
     this.users = [];
     this.tokens = [];
+    this.dashboard = "dashboard-guest"; // Default to dashboard-guest
+    this.user = ""; // Track the selected user
     this.alert = "";
 
     // form inputs
     this.name = "";
-    this.user = "";
-    this.expire = "";
-    this.expirationDateTime = "";
-    this.dashboard = "";
+    this.expire = 60;
+
+    // Set expirationDateTime to the current local date and time
+    const now = new Date();
+    const localDate = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    const localTime = now.toTimeString().slice(0, 5); // HH:MM in local time
+
+    this.expirationDateTime = `${localDate}T${localTime}`; // Format as YYYY-MM-DDTHH:MM
   }
 
   fetchUsers() {
-    this.hass.callWS({ type: "virtual_keys/list_users" }).then((users) => {
-      this.users = [];
-      this.tokens = [];
-      users
-        .filter((user) => !user.system_generated && user.is_active)
-        .forEach((user) => {
-          this.users.push({
-            id: user.id,
-            name: user.name,
-          });
-          user.tokens
-            .filter(
-              (token) =>
-                token.type === "long_lived_access_token" &&
-                token.expiration !== 315360000
-            )
-            .forEach((token) => {
-              this.tokens.push({
-                id: token.id,
-                name: token.name,
-                user: user.name,
-                jwt_token: token.jwt_token,
-                expiration: token.expiration,
-                remaining: token.remaining,
-              });
+    return this.hass
+      .callWS({ type: "virtual_keys/list_users" })
+      .then((users) => {
+        this.users = [];
+        this.tokens = [];
+        users
+          .filter((user) => !user.system_generated && user.is_active)
+          .forEach((user) => {
+            this.users.push({
+              id: user.id,
+              name: user.name,
             });
-        });
-    });
+            user.tokens
+              .filter(
+                (token) =>
+                  token.type === "long_lived_access_token" &&
+                  token.expiration !== 315360000
+              )
+              .forEach((token) => {
+                this.tokens.push({
+                  id: token.id,
+                  name: token.name,
+                  user: user.name,
+                  jwt_token: token.jwt_token,
+                  expiration: token.expiration,
+                  remaining: token.remaining,
+                });
+              });
+          });
+      });
   }
 
   update(changedProperties) {
     if (changedProperties.has("hass") && this.hass) {
-      this.fetchUsers();
+      this.fetchUsers().then(() => {
+        // Handle default user
+        if (this.users.length > 0 && !this.user) {
+          const defaultUser =
+            this.users.find((user) => user.name === "guest") || this.users[0];
+          this.user = defaultUser.id;
+
+          // Manually trigger a value-changed event for the ha-combo-box
+          const comboBox = this.shadowRoot.querySelector("ha-combo-box");
+          if (comboBox) {
+            comboBox.value = this.user;
+            comboBox.dispatchEvent(
+              new CustomEvent("value-changed", {
+                detail: { value: this.user },
+                bubbles: true,
+                composed: true,
+              })
+            );
+          }
+        }
+
+        // Handle default dashboard
+        if (!this.dashboard) {
+          this.dashboard = "dashboard-guest"; // Default dashboard value
+
+          // Manually trigger a value-changed event for the dashboard textfield
+          const dashboardInput = this.shadowRoot.querySelector(
+            'ha-textfield[label="Dashboard ID"]'
+          );
+          if (dashboardInput) {
+            dashboardInput.value = this.dashboard;
+            dashboardInput.dispatchEvent(
+              new CustomEvent("input", {
+                detail: { value: this.dashboard },
+                bubbles: true,
+                composed: true,
+              })
+            );
+          }
+        }
+      });
     }
     super.update(changedProperties);
   }
@@ -178,7 +226,7 @@ class VirtualKeysPanel extends LitElement {
       this.hass.hassUrl() +
       "local/community/virtual-keys/login.html?token=" +
       token.jwt_token;
-    return "{$baseUrl}&dash={$this.dashboard}";
+    return this.dashboard ? `${baseUrl}&dash=${this.dashboard}` : baseUrl;
   }
 
   listItemClick(e, token) {
@@ -222,17 +270,15 @@ class VirtualKeysPanel extends LitElement {
               .items=${this.users}
               .itemLabelPath=${"name"}
               .itemValuePath=${"id"}
-              .value=${
-                this.users.find((user) => user.name === "guest")?.id || ""
-              }
+              .value=${this.user}
               .label=${"User"}
               @value-changed=${this.userChanged}
             >
             </ha-combo-box>
             
-            <ha-textfield label="Dashboard" value="dashboard-guest" @input="${
-              this.dashboardChanged
-            }"></ha-textfield>
+            <ha-textfield label="Dashboard"
+            value="${this.dashboard}"
+            @input="${this.dashboardChanged}"></ha-textfield>
             
             <ha-textfield label="Expire (minutes)" type="number" value="${
               this.expire
