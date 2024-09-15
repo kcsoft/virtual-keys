@@ -49,8 +49,15 @@ To make this work, I need to make some additional steps (after installing Virtua
 
 * create a new group eg. "guests" and add the user "guest" to it, and also the devices you want to give access to, eg "cover.front_gate", instructions [here](https://developers.home-assistant.io/blog/2019/03/11/user-permissions/)
 
-* create a new View (tab) in the default Lovelace UI and add the entities you want to give access to, eg. "cover.front_gate", set the visibility to only show to user "guest".
+* create a new dashboard in the default Lovelace UI and add the entities you want to give access to, eg. "cover.front_gate", set the visibility to only show to user "guest" – **recommended that you name the dashboard guest, as this is the default dashboard ID**
 
-* install [kiosk-mode](https://github.com/NemesisRE/kiosk-mode) and configure it set "kiosk" mode for user "guest"
+* install [kiosk-mode](https://github.com/NemesisRE/kiosk-mode) and configure it set "kiosk" mode for user "guest", by editing the raw dashboard, and adding this at the start of the file:
+```yaml
+kiosk_mode:
+  user_settings:
+    - users:
+        - guest
+      kiosk: true
+```
 
 Ths is it, you can now create Virtual Keys and share the link.
