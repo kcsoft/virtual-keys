@@ -35,20 +35,23 @@ class VirtualKeysPanel extends LitElement {
     super();
     this.users = [];
     this.tokens = [];
-    this.dashboard = "dashboard-guest"; // Default to dashboard-guest
-    this.user = ""; // Track the selected user
+    this.dashboard = "dashboard-guest";
+    this.user = "";
     this.alert = "";
 
     // form inputs
     this.name = "";
-    this.expire = 60;
+    this.expire = 60; // Default to 60 minutes
+
+    // Control for whether date/time expiration is used
+    this.useDateTime = false;
 
     // Set expirationDateTime to the current local date and time
     const now = new Date();
     const localDate = now.toISOString().slice(0, 10); // YYYY-MM-DD
     const localTime = now.toTimeString().slice(0, 5); // HH:MM in local time
 
-    this.expirationDateTime = `${localDate}T${localTime}`; // Format as YYYY-MM-DDTHH:MM
+    this.expirationDateTime = `${localDate}T${localTime}`;
   }
 
   fetchUsers() {
@@ -164,7 +167,7 @@ class VirtualKeysPanel extends LitElement {
       user_id: this.user,
     };
 
-    if (this.expirationDateTime) {
+    if (this.useDateTime) {
       msg.expiration = this.expirationDateTime;
     } else {
       msg.minutes = parseInt(this.expire, 10);
@@ -239,22 +242,39 @@ class VirtualKeysPanel extends LitElement {
       <div>
         <header class="mdc-top-app-bar mdc-top-app-bar--fixed">
           <div class="mdc-top-app-bar__row">
-            <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start" id="navigation">
+            <section
+              class="mdc-top-app-bar__section mdc-top-app-bar__section--align-start"
+              id="navigation"
+            >
               <div>
-                <mwc-icon-button title="Sidebar Toggle" @click=${
-                  this.toggleSideBar
-                }>
-                  <svg preserveAspectRatio="xMidYMid meet" focusable="false" role="img" aria-hidden="true" viewBox="0 0 24 24">
-                    <g><path class="primary-path" d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"></path></g>
+                <mwc-icon-button
+                  title="Sidebar Toggle"
+                  @click=${this.toggleSideBar}
+                >
+                  <svg
+                    preserveAspectRatio="xMidYMid meet"
+                    focusable="false"
+                    role="img"
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                  >
+                    <g>
+                      <path
+                        class="primary-path"
+                        d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"
+                      ></path>
+                    </g>
                   </svg>
                 </mwc-icon-button>
               </div>
 
-              <span class="mdc-top-app-bar__title">
-                ${this.panel.title}
-              </span>
+              <span class="mdc-top-app-bar__title"> ${this.panel.title} </span>
             </section>
-            <section class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end" id="actions" role="toolbar">
+            <section
+              class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end"
+              id="actions"
+              role="toolbar"
+            >
               <slot name="actionItems"></slot>
             </section>
           </div>
@@ -262,9 +282,11 @@ class VirtualKeysPanel extends LitElement {
 
         <div class="mdc-top-app-bar--fixed-adjust flex content">
           <div class="filters">
-            <ha-textfield label="Key name" value="" @input="${
-              this.nameChanged
-            }"></ha-textfield>
+            <ha-textfield
+              label="Key name"
+              value=""
+              @input="${this.nameChanged}"
+            ></ha-textfield>
 
             <ha-combo-box
               .items=${this.users}
@@ -275,34 +297,57 @@ class VirtualKeysPanel extends LitElement {
               @value-changed=${this.userChanged}
             >
             </ha-combo-box>
-            
-            <ha-textfield label="Dashboard"
-            value="${this.dashboard}"
-            @input="${this.dashboardChanged}"></ha-textfield>
-            
-            <ha-textfield label="Expire (minutes)" type="number" value="${
-              this.expire
-            }"" @input="${this.expireChanged}"></ha-textfield>
 
-            <input type="date"
-            .value=${this.expirationDateTime.split("T")[0]}
-            @change=${(e) => {
-              const date = e.target.value;
-              const time = this.expirationDateTime.split("T")[1] || "00:00";
-              this.expirationDateTime = `${date}T${time}`;
-            }}
-            />
-            
-            <input type="time"
-              .value=${this.expirationDateTime.split("T")[1] || "00:00"}
+            <ha-textfield
+              label="Dashboard"
+              value="${this.dashboard}"
+              @input="${this.dashboardChanged}"
+            ></ha-textfield>
+
+            <input
+              type="checkbox"
+              id="useDateTime"
+              .checked=${this.useDateTime}
               @change=${(e) => {
-                const time = e.target.value;
-                const date =
-                  this.expirationDateTime.split("T")[0] ||
-                  new Date().toISOString().split("T")[0];
-                this.expirationDateTime = `${date}T${time}`;
+                this.useDateTime = e.target.checked;
+                this.requestUpdate(); // Force an immediate re-render
               }}
-            />            
+            />
+            <label for="useDateTime">Use Date/Time Based Expiration</label>
+
+            ${this.useDateTime
+              ? html`
+                  <input
+                    type="date"
+                    .value=${this.expirationDateTime.split("T")[0]}
+                    @change=${(e) => {
+                      const date = e.target.value;
+                      const time =
+                        this.expirationDateTime.split("T")[1] || "00:00";
+                      this.expirationDateTime = `${date}T${time}`;
+                    }}
+                  />
+                  <input
+                    type="time"
+                    .value=${this.expirationDateTime.split("T")[1] || "00:00"}
+                    @change=${(e) => {
+                      const time = e.target.value;
+                      const date =
+                        this.expirationDateTime.split("T")[0] ||
+                        new Date().toISOString().split("T")[0];
+                      this.expirationDateTime = `${date}T${time}`;
+                    }}
+                  />
+                `
+              : html`
+                  <ha-textfield
+                    label="Expire (minutes)"
+                    type="number"
+                    value="${this.expire}"
+                    @input="${(e) => (this.expire = e.target.value)}"
+                  >
+                  </ha-textfield>
+                `}
             <mwc-button raised label="Add" @click=${this.addClick}></mwc-button>
           </div>
 
@@ -332,8 +377,7 @@ class VirtualKeysPanel extends LitElement {
           </ha-card>
         </div>
 
-      ${this.alert.length ? html`<ha-alert>${this.alert}</ha-alert>` : ""}
-
+        ${this.alert.length ? html`<ha-alert>${this.alert}</ha-alert>` : ""}
       </div>
     `;
   }
