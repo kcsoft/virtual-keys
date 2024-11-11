@@ -66,6 +66,9 @@ class VirtualKeysPanel extends LitElement {
             id: user.id,
             name: user.name,
           });
+          if (user.name === "guest") {
+            this.user = user.id;
+          }
           user.tokens
             .filter(
               (token) =>
@@ -82,8 +85,6 @@ class VirtualKeysPanel extends LitElement {
                 remaining: token.remaining,
               });
             });
-          this.user =
-            this.users.find((u) => u.name === "guest")?.id || this.users[0]?.id;
         });
     });
   }
