@@ -18,6 +18,14 @@ function humanSeconds(seconds) {
     .join(" ");
 }
 
+function differenceInMinutes(targetDateStr) {
+  const now = new Date();
+  const targetDate = new Date(targetDateStr);
+  const diffInMilliseconds = targetDate - now;
+  const diffInMinutes = Math.floor(diffInMilliseconds / 1000 / 60);
+  return diffInMinutes;
+}
+
 class VirtualKeysPanel extends LitElement {
   static get properties() {
     return {
@@ -35,101 +43,31 @@ class VirtualKeysPanel extends LitElement {
     super();
     this.users = [];
     this.tokens = [];
-    this.dashboard = "dashboard-guest";
-    this.user = "";
+    this.user = null;
+    this.dashboard = "dashboard-guest"; // Default dashboard
     this.alert = "";
-
-    // form inputs
-    this.name = "";
-    this.expire = 60; // Default to 60 minutes
-
-    // Control for whether date/time expiration is used
+    this.name = null;
+    this.expire = 0;
     this.useDateTime = false;
-
-    // Set expirationDateTime to the current local date and time
-    const now = new Date();
-    const localDate = now.toISOString().slice(0, 10); // YYYY-MM-DD
-    const localTime = now.toTimeString().slice(0, 5); // HH:MM in local time
-
-    this.expirationDateTime = `${localDate}T${localTime}`;
+    this.expirationDateTime = ""; // Store the date/time string
   }
 
   fetchUsers() {
-    return this.hass
-      .callWS({ type: "virtual_keys/list_users" })
-      .then((users) => {
-        this.users = [];
-        this.tokens = [];
-        users
-          .filter((user) => !user.system_generated && user.is_active)
-          .forEach((user) => {
-            this.users.push({
-              id: user.id,
-              name: user.name,
-            });
-            user.tokens
-              .filter(
-                (token) =>
-                  token.type === "long_lived_access_token" &&
-                  token.expiration !== 315360000
-              )
-              .forEach((token) => {
-                this.tokens.push({
-                  id: token.id,
-                  name: token.name,
-                  user: user.name,
-                  jwt_token: token.jwt_token,
-                  expiration: token.expiration,
-                  remaining: token.remaining,
-                });
-              });
-          });
-      });
+    this.hass.callWS({ type: "virtual_keys/list_users" }).then((users) => {
+      this.users = users
+        .filter((user) => !user.system_generated && user.is_active)
+        .map((user) => ({ id: user.id, name: user.name }));
+      // Default to "guest" user or the first user in the list
+      if (!this.user) {
+        this.user =
+          this.users.find((u) => u.name === "guest")?.id || this.users[0]?.id;
+      }
+    });
   }
 
   update(changedProperties) {
     if (changedProperties.has("hass") && this.hass) {
-      this.fetchUsers().then(() => {
-        // Handle default user
-        if (this.users.length > 0 && !this.user) {
-          const defaultUser =
-            this.users.find((user) => user.name === "guest") || this.users[0];
-          this.user = defaultUser.id;
-
-          // Manually trigger a value-changed event for the ha-combo-box
-          const comboBox = this.shadowRoot.querySelector("ha-combo-box");
-          if (comboBox) {
-            comboBox.value = this.user;
-            comboBox.dispatchEvent(
-              new CustomEvent("value-changed", {
-                detail: { value: this.user },
-                bubbles: true,
-                composed: true,
-              })
-            );
-          }
-        }
-
-        // Handle default dashboard
-        if (!this.dashboard) {
-          this.dashboard = "dashboard-guest"; // Default dashboard value
-
-          // Manually trigger a value-changed event for the dashboard textfield
-          const dashboardInput = this.shadowRoot.querySelector(
-            'ha-textfield[label="Dashboard ID"]'
-          );
-          if (dashboardInput) {
-            dashboardInput.value = this.dashboard;
-            dashboardInput.dispatchEvent(
-              new CustomEvent("input", {
-                detail: { value: this.dashboard },
-                bubbles: true,
-                composed: true,
-              })
-            );
-          }
-        }
-      });
+      this.fetchUsers();
     }
     super.update(changedProperties);
   }
@@ -146,95 +84,49 @@ class VirtualKeysPanel extends LitElement {
     this.dashboard = e.target.value;
   }
 
-  expireChanged(e) {
-    this.expire = e.target.value;
-  }
-
   expirationDateTimeChanged(e) {
-    this.expirationDateTime = e.target.value;
-  }
-
-  toggleSideBar() {
-    this.dispatchEvent(
-      new Event("hass-toggle-menu", { bubbles: true, composed: true })
-    );
+    this.expirationDateTime = e.detail.value;
   }
 
   addClick() {
-    const msg = {
+    const request = {
       type: "virtual_keys/create_token",
       name: this.name,
       user_id: this.user,
     };
 
-    if (this.useDateTime) {
-      msg.expiration = this.expirationDateTime;
+    // Check if we're using date/time expiration or minutes
+    if (this.useDateTime && this.expirationDateTime) {
+      request.minutes = differenceInMinutes(this.expirationDateTime);
     } else {
-      msg.minutes = parseInt(this.expire, 10);
+      request.minutes = parseInt(this.expire, 10);
     }
 
     this.hass
-      .callWS(msg)
+      .callWS(request)
       .then(() => {
         this.fetchUsers();
       })
       .catch((err) => {
-        this.showAlert(err.message);
-      });
-  }
-
-  deleteButton() {
-    return html`<svg
-      preserveAspectRatio="xMidYMid meet"
-      focusable="false"
-      role="img"
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      width="24"
-      height="24"
-    >
-      <g>
-        <path
-          d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
-        ></path>
-      </g>
-    </svg>`;
-  }
-
-  showAlert(text) {
-    this.alert = text;
-    setTimeout(() => {
-      this.alert = "";
-    }, 2000);
-  }
-
-  deleteClick(e, token) {
-    e.stopPropagation();
-
-    this.hass
-      .callWS({
-        type: "virtual_keys/delete_token",
-        token_id: token.id,
-      })
-      .then(() => {
-        this.fetchUsers();
-      })
-      .catch((err) => {
-        this.showAlert(err.message);
+        this.alert = err.message;
+        setTimeout(() => (this.alert = ""), 3000);
       });
   }
 
   getLoginUrl(token) {
-    const baseUrl =
-      this.hass.hassUrl() +
-      "local/community/virtual-keys/login.html?token=" +
-      token.jwt_token;
-    return this.dashboard ? `${baseUrl}&dash=${this.dashboard}` : baseUrl;
+    let url = `${this.hass.hassUrl()}local/community/virtual-keys/login.html?token=${
+      token.jwt_token
+    }`;
+    if (this.dashboard) {
+      url += `&dash=${this.dashboard}`;
+    }
+    return url;
   }
 
   listItemClick(e, token) {
     navigator.clipboard.writeText(this.getLoginUrl(token));
-    this.showAlert("Copied to clipboard " + token.name);
+    this.alert = `Copied ${token.name} to clipboard!`;
+    setTimeout(() => (this.alert = ""), 3000);
   }
 
   render() {
@@ -249,15 +141,15 @@ class VirtualKeysPanel extends LitElement {
               <div>
                 <mwc-icon-button
                   title="Sidebar Toggle"
-                  @click=${this.toggleSideBar}
+                  @click=${() =>
+                    this.dispatchEvent(
+                      new Event("hass-toggle-menu", {
+                        bubbles: true,
+                        composed: true,
+                      })
+                    )}
                 >
-                  <svg
-                    preserveAspectRatio="xMidYMid meet"
-                    focusable="false"
-                    role="img"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
-                  >
+                  <svg viewBox="0 0 24 24">
                     <g>
                       <path
                         class="primary-path"
@@ -267,15 +159,7 @@ class VirtualKeysPanel extends LitElement {
                   </svg>
                 </mwc-icon-button>
               </div>
-
-              <span class="mdc-top-app-bar__title"> ${this.panel.title} </span>
-            </section>
-            <section
-              class="mdc-top-app-bar__section mdc-top-app-bar__section--align-end"
-              id="actions"
-              role="toolbar"
-            >
-              <slot name="actionItems"></slot>
+              <span class="mdc-top-app-bar__title">${this.panel.title}</span>
             </section>
           </div>
         </header>
@@ -284,217 +168,90 @@ class VirtualKeysPanel extends LitElement {
           <div class="filters">
             <ha-textfield
               label="Key name"
-              value=""
-              @input="${this.nameChanged}"
+              @input=${this.nameChanged}
             ></ha-textfield>
 
             <ha-combo-box
               .items=${this.users}
-              .itemLabelPath=${"name"}
-              .itemValuePath=${"id"}
+              .itemLabelPath="name"
+              .itemValuePath="id"
               .value=${this.user}
-              .label=${"User"}
+              label="User"
               @value-changed=${this.userChanged}
-            >
-            </ha-combo-box>
+            ></ha-combo-box>
 
             <ha-textfield
               label="Dashboard"
-              value="${this.dashboard}"
-              @input="${this.dashboardChanged}"
+              .value=${this.dashboard}
+              @input=${this.dashboardChanged}
             ></ha-textfield>
 
             <input
               type="checkbox"
               id="useDateTime"
               .checked=${this.useDateTime}
-              @change=${(e) => {
-                this.useDateTime = e.target.checked;
-                this.requestUpdate(); // Force an immediate re-render
-              }}
+              @change=${(e) => (this.useDateTime = e.target.checked)}
             />
-            <label for="useDateTime">Use Date/Time Based Expiration</label>
+            <label for="useDateTime">Use Date/Time Expiration</label>
 
             ${this.useDateTime
               ? html`
-                  <input
-                    type="date"
-                    .value=${this.expirationDateTime.split("T")[0]}
-                    @change=${(e) => {
-                      const date = e.target.value;
-                      const time =
-                        this.expirationDateTime.split("T")[1] || "00:00";
-                      this.expirationDateTime = `${date}T${time}`;
-                    }}
-                  />
-                  <input
-                    type="time"
-                    .value=${this.expirationDateTime.split("T")[1] || "00:00"}
-                    @change=${(e) => {
-                      const time = e.target.value;
-                      const date =
-                        this.expirationDateTime.split("T")[0] ||
-                        new Date().toISOString().split("T")[0];
-                      this.expirationDateTime = `${date}T${time}`;
-                    }}
-                  />
+                  <ha-selector
+                    .selector=${{ datetime: { mode: "both" } }}
+                    .hass=${this.hass}
+                    label="Expiration Date/Time"
+                    @value-changed=${this.expirationDateTimeChanged}
+                  ></ha-selector>
                 `
               : html`
                   <ha-textfield
                     label="Expire (minutes)"
                     type="number"
-                    value="${this.expire}"
-                    @input="${(e) => (this.expire = e.target.value)}"
-                  >
-                  </ha-textfield>
+                    .value=${this.expire}
+                    @input=${(e) => (this.expire = e.target.value)}
+                  ></ha-textfield>
                 `}
+
             <mwc-button raised label="Add" @click=${this.addClick}></mwc-button>
           </div>
 
-          <ha-card>
-            <mwc-list>
-              ${this.tokens.map(
-                (token) => html`
-                  <mwc-list-item
-                    hasMeta
-                    twoline
-                    @click=${(e) => this.listItemClick(e, token)}
-                  >
-                    <a href="${this.getLoginUrl(token)}">${token.name}</a>
-                    <span slot="secondary"
-                      >${token.user}, Expire:
-                      ${humanSeconds(token.remaining)}</span
-                    >
-                    <mwc-icon
-                      slot="meta"
-                      @click=${(e) => this.deleteClick(e, token)}
-                      >${this.deleteButton()}</mwc-icon
-                    >
-                  </mwc-list-item>
-                `
-              )}
-            </mwc-list>
-          </ha-card>
+          ${this.alert ? html`<ha-alert>${this.alert}</ha-alert>` : ""}
+          ${this.tokens.length
+            ? html`
+                <ha-card class="container-list">
+                  <mwc-list>
+                    ${this.tokens.map(
+                      (token) => html`
+                        <mwc-list-item
+                          hasMeta
+                          twoline
+                          @click=${(e) => this.listItemClick(e, token)}
+                        >
+                          <a href="${this.getLoginUrl(token)}">${token.name}</a>
+                          <span slot="secondary"
+                            >${token.user}, Expires:
+                            ${humanSeconds(token.remaining)}</span
+                          >
+                          <mwc-icon
+                            slot="meta"
+                            @click=${(e) => this.deleteClick(e, token)}
+                            >${this.deleteButton()}</mwc-icon
+                          >
+                        </mwc-list-item>
+                      `
+                    )}
+                  </mwc-list>
+                </ha-card>
+              `
+            : ""}
         </div>
-
-        ${this.alert.length ? html`<ha-alert>${this.alert}</ha-alert>` : ""}
       </div>
     `;
   }
 
   static get styles() {
     return css`
-      :host {
-      }
-      .mdc-top-app-bar {
-        --mdc-typography-headline6-font-weight: 400;
-        color: var(--app-header-text-color, var(--mdc-theme-on-primary, #fff));
-        background-color: var(
-          --app-header-background-color,
-          var(--mdc-theme-primary)
-        );
-        width: var(--mdc-top-app-bar-width, 100%);
-        display: flex;
-        position: fixed;
-        flex-direction: column;
-        justify-content: space-between;
-        box-sizing: border-box;
-        width: 100%;
-        z-index: 4;
-      }
-      .mdc-top-app-bar--fixed {
-        transition: box-shadow 0.2s linear 0s;
-      }
-      .mdc-top-app-bar--fixed-adjust {
-        padding-top: var(--header-height);
-      }
-      .mdc-top-app-bar__row {
-        height: var(--header-height);
-        border-bottom: var(--app-header-border-bottom);
-        display: flex;
-        position: relative;
-        box-sizing: border-box;
-        width: 100%;
-        height: 64px;
-      }
-      .mdc-top-app-bar__section--align-start {
-        justify-content: flex-start;
-        order: -1;
-      }
-      .mdc-top-app-bar__section {
-        display: inline-flex;
-        flex: 1 1 auto;
-        align-items: center;
-        min-width: 0px;
-        padding: 8px 12px;
-        z-index: 1;
-      }
-      .mdc-top-app-bar__title {
-        -webkit-font-smoothing: antialiased;
-        font-family: var(
-          --mdc-typography-headline6-font-family,
-          var(--mdc-typography-font-family, Roboto, sans-serif)
-        );
-        font-size: var(--mdc-typography-headline6-font-size, 1.25rem);
-        line-height: var(--mdc-typography-headline6-line-height, 2rem);
-        font-weight: var(--mdc-typography-headline6-font-weight, 500);
-        letter-spacing: var(
-          --mdc-typography-headline6-letter-spacing,
-          0.0125em
-        );
-        text-decoration: var(
-          --mdc-typography-headline6-text-decoration,
-          inherit
-        );
-        text-transform: var(--mdc-typography-headline6-text-transform, inherit);
-        padding-left: 20px;
-        padding-right: 0px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        overflow: hidden;
-        z-index: 1;
-      }
-
-      app-header {
-        background-color: var(--primary-color);
-        color: var(--text-primary-color);
-        font-weight: 400;
-      }
-      app-toolbar {
-        height: var(--header-height);
-      }
-      app-toolbar [main-title] {
-        margin-left: 20px;
-      }
-      ha-combo-box {
-        padding: 8px 0;
-        width: auto;
-      }
-      mwc-button {
-        padding: 16px 0;
-      }
-      .content {
-        padding-left: 16px;
-        padding-right: 16px;
-        padding-bottom: 16px;
-      }
-      .flex {
-        flex: 1 1 1e-9px;
-      }
-      .filters {
-        align-items: center;
-        display: flex;
-        flex-wrap: wrap;
-        padding: 8px 16px 0px;
-      }
-      .filters > * {
-        margin-right: 8px;
-      }
-      @media (min-width: 870px) {
-        mwc-icon-button {
-          display: none;
-        }
-      }
+      /* Add styles as per your design preference */
     `;
   }
 }
