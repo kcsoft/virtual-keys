@@ -16,6 +16,12 @@ function humanSeconds(seconds) {
   }).join(' ');
 }
 
+function humanDate(seconds) {
+  const now = new Date();
+  const date = new Date(now.getTime() + seconds * 1000);
+  return date.toLocaleString();
+}
+
 class VirtualKeysPanel extends LitElement {
   static get properties() {
     return {
@@ -25,7 +31,7 @@ class VirtualKeysPanel extends LitElement {
       panel: { type: Object },
       users: { type: Array },
       tokens: { type: Array },
-      alert: { type: String },
+      useExpireMinutes: { type: Boolean },
     };
   }
 
@@ -33,12 +39,14 @@ class VirtualKeysPanel extends LitElement {
     super();
     this.users = [];
     this.tokens = [];
-    this.alert = '';
 
     // form inputs
     this.name = '';
     this.user = '';
-    this.expire = 60;
+    this.useExpireMinutes = true;
+    this.expireMinutes = 60;
+    this.expireDate = '';
+    this.expireMinutesChanged({ target: { value: this.expireMinutes } });
   }
 
   fetchUsers() {
@@ -80,20 +88,62 @@ class VirtualKeysPanel extends LitElement {
     this.name = e.target.value;
   }
 
-  expireChanged(e) {
-    this.expire = e.target.value;
+  expireMinutesChanged(e) {
+    this.expireMinutes = e.target.value;
+    const date = new Date((new Date().getTime()) + parseInt(this.expireMinutes, 10) * 60000);
+    this.expireDate = date.toLocaleString('sv');
+  }
+
+  expireDateChanged(e) {
+    const diffInMins = Math.round((new Date(e.detail.value) - new Date()) / 60000);
+    this.expireMinutes = Math.max(0, diffInMins)  + '';
+    this.expireDate = e.detail.value;
+  }
+  
+  toggleExpire() {
+    this.useExpireMinutes = !this.useExpireMinutes;
   }
 
   toggleSideBar() {
     this.dispatchEvent(new Event('hass-toggle-menu', { bubbles: true, composed: true}));
   }
 
+  validate() {
+    if (!this.name) {
+      this.showAlert('Name is required');
+      return false;
+    }
+    if (!this.user) {
+      this.showAlert('User is required');
+      return false;
+    }
+    if (this.useExpireMinutes && !this.expireMinutes) {
+      this.showAlert('Expire minutes is required');
+      return false;
+    }
+    if (!this.useExpireMinutes && !this.expireDate) {
+      this.showAlert('Expire date is required');
+      return false;
+    }
+    if (parseInt(this.expireMinutes, 10) < 1) {
+      this.showAlert(this.useExpireMinutes
+        ? 'Expire minutes must be greater than 0'
+        : 'Expire date must be in the future');
+      return false
+    }
+    return true;
+  }
+
   addClick() {
+    if (!this.validate()) {
+      return;
+    }
+
     this.hass.callWS({
       type: 'virtual_keys/create_token',
       name: this.name,
       user_id: this.user,
-      minutes: parseInt(this.expire, 10),
+      minutes: parseInt(this.expireMinutes, 10),
     }).then(() => {
       this.fetchUsers();
     }).catch(err => {
@@ -107,11 +157,10 @@ class VirtualKeysPanel extends LitElement {
       </svg>`;
   }
 
-  showAlert(text) {
-    this.alert = text;
-    setTimeout(() => {
-      this.alert = '';
-    }, 2000);
+  showAlert(message) {
+    const event = new Event('hass-notification', { bubbles: true, composed: true});
+    event.detail = { message };
+    this.dispatchEvent(event);
   }
 
   deleteClick(e, token) {
@@ -162,19 +211,51 @@ class VirtualKeysPanel extends LitElement {
 
         <div class="mdc-top-app-bar--fixed-adjust flex content">
           <div class="filters">
-            <ha-textfield label="Key name" value="" @input="${this.nameChanged}"></ha-textfield>
+            <ha-textfield
+              label="Key name"
+              .value="${this.name}"
+              .required=${true}
+              @input="${this.nameChanged}"
+            ></ha-textfield>
 
             <ha-combo-box
               .items=${this.users}
               .itemLabelPath=${'name'}
               .itemValuePath=${'id'}
               .value="1"
-              .label=${'User'}
+              label="User"
+              .required=${true}
               @value-changed=${this.userChanged}
             >
             </ha-combo-box>
 
-            <ha-textfield label="Expire (minutes)" type="number" value="${this.expire}"" @input="${this.expireChanged}"></ha-textfield>
+            <mwc-button
+              .label="${this.useExpireMinutes ? 'Use date' : 'Use minutes'}"
+              @click=${this.toggleExpire}
+            ></mwc-button>
+
+            ${this.useExpireMinutes
+            ? html`
+            <ha-textfield
+              label="Expire (minutes)"
+              .type="number"
+              .value="${this.expireMinutes}"
+              @input="${this.expireMinutesChanged}"
+            ></ha-textfield>
+            `
+            : html`
+            <ha-selector
+              .selector=${{
+                datetime: {},
+              }}
+              .value=${this.expireDate}
+              label="Expire on"
+              .hass=${this.hass}
+              .required=${false}
+              @value-changed=${this.expireDateChanged}
+            >
+            </ha-selector>
+            `}
 
             <mwc-button raised label="Add" @click=${this.addClick}></mwc-button>
           </div>
@@ -184,16 +265,17 @@ class VirtualKeysPanel extends LitElement {
               ${this.tokens.map(token => html`
                 <mwc-list-item hasMeta twoline @click=${e => this.listItemClick(e, token)}>
                   <a href="${this.getLoginUrl(token)}">${token.name}</a>
-                  <span slot="secondary">${token.user}, Expire: ${humanSeconds(token.remaining)}</span>
+                  <span slot="secondary">${token.user}, ${
+                    this.useExpireMinutes
+                    ? `Expire in: ${humanSeconds(token.remaining)}`
+                    : `Expire on: ${humanDate(token.remaining)}`
+                  }</span>
                   <mwc-icon slot="meta" @click=${e => this.deleteClick(e, token)}>${this.deleteButton()}</mwc-icon>
                 </mwc-list-item>
               `)}
             </mwc-list>
           </ha-card>
         </div>
-
-      ${this.alert.length ? html`<ha-alert>${this.alert}</ha-alert>` : ''}
-
       </div>
     `;
   }
