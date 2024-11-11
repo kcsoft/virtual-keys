@@ -269,7 +269,7 @@ class VirtualKeysPanel extends LitElement {
               .items=${this.users}
               .itemLabelPath=${"name"}
               .itemValuePath=${"id"}
-              .value="1"
+              .value=${this.user}
               .label=${"User"}
               @value-changed=${this.userChanged}
             >
