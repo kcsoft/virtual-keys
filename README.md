@@ -1,56 +1,32 @@
-# virtual-keys
+# Virtual Keys
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
 Create login link for [Home Assistant](https://www.home-assistant.io/) that you can share with guests.
 
-![image](images/screenshot1.png)
+## Description
 
-# Installation
+Virtual Keys is a Home Assistant integration that allows you to create login links that can be shared with guests. These links provide access to specific entities in Home Assistant for a limited time.
 
-## HACS installation
+See [Lovelace Virtual Keys](https://github.com/kcsoft/lovelace-virtual-keys) for a more detailed description.
+
+## Installation
+
+Both [this integration](https://github.com/kcsoft/virtual-keys) and the [Lovelace plugin](https://github.com/kcsoft/lovelace-virtual-keys) need to be installed.
+
+### HACS Installation
 
 You need to install [HACS](https://hacs.xyz/) first.
 
-Because HACS doesn't support both `Integration` and `Plugin` in the same repository, you need to install it twice, once as an `Integration` and once as a `Plugin (Lovelace)`.
+1. Add "Custom repositories" to HACS, paste the URL of this repository and select "Integration" as category.
 
-* add "Custom repositories" to HACS, paste the URL of this repository and select "Lovelace" as category
+2. Go to HACS -> Integrations, Explore and Download Repositories, search for "virtual keys" and install it.
 
-* go to HACS -> Frontend, Explore and Download Repositories, search for "virtual keys" and install it
+3. Add the following to `configuration.yaml`:
 
-* in HACS "Custom repositories" delete the URL of this repository
+    ```yaml
+    virtual_keys:
+    ```
 
-* add "Custom repositories" to HACS, paste the URL of this repository and this time select "Integration" as category
+4. Install the [Lovelace Virtual Keys](https://github.com/kcsoft/lovelace-virtual-keys) plugin as a companion app.
 
-* go to HACS -> Integrations, Explore and Download Repositories, search for "virtual keys" and install it
-
-* add to `configuration.yaml`:
-
-```yaml
-virtual_keys:
-
-panel_custom:
-  - name: virtual-keys-panel
-    require_admin: true
-    url_path: virtual-keys
-    sidebar_title: Virtual Keys
-    sidebar_icon: mdi:key-variant
-    module_url: /local/community/virtual-keys/virtual-keys.js
-```
-
-* restart Home Assistant
-
-# Use case
-
-I want to share a "virtual key" with my friends that is valid for a limited time and that they can use to access specific entities in Home Assistant like the fron gate. The key is actually a link to my Home Assistant that can be opened in a browser.
-
-To make this work, I need to make some additional steps (after installing Virtual Keys):
-
-* create a new user in Home Assistant eg. "guest"
-
-* create a new group eg. "guests" and add the user "guest" to it, and also the devices you want to give access to, eg "cover.front_gate", instructions [here](https://developers.home-assistant.io/blog/2019/03/11/user-permissions/)
-
-* create a new View (tab) in the default Lovelace UI and add the entities you want to give access to, eg. "cover.front_gate", set the visibility to only show to user "guest".
-
-* install [kiosk-mode](https://github.com/NemesisRE/kiosk-mode) and configure it set "kiosk" mode for user "guest"
-
-Ths is it, you can now create Virtual Keys and share the link.
+5. Restart Home Assistant.
