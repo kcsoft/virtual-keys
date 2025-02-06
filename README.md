@@ -1,56 +1,43 @@
-# virtual-keys
+# Virtual Keys
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
 
 Create login link for [Home Assistant](https://www.home-assistant.io/) that you can share with guests.
 
 ![image](images/screenshot1.png)
 
-# Installation
+## Description
 
-## HACS installation
+Virtual Keys is a Home Assistant integration that allows you to create login links that can be shared with guests. These links provide access to specific entities in Home Assistant for a limited time.
+
+See [Lovelace Virtual Keys](https://github.com/kcsoft/lovelace-virtual-keys) for a more detailed description.
+
+## Installation with HACS
 
 You need to install [HACS](https://hacs.xyz/) first.
 
-Because HACS doesn't support both `Integration` and `Plugin` in the same repository, you need to install it twice, once as an `Integration` and once as a `Plugin (Lovelace)`.
+1. In HACS, go to Integrations and click on the three dots in the top right corner. Select "Custom repositories".
 
-* add "Custom repositories" to HACS, paste the URL of this repository and select "Lovelace" as category
+2. Add `kcsoft/virtual-keys` as the repository and select the category `Integration`.
 
-* go to HACS -> Frontend, Explore and Download Repositories, search for "virtual keys" and install it
+3. Search for "Virtual Keys" and download it.
 
-* in HACS "Custom repositories" delete the URL of this repository
+4. Restart Home Assistant.
 
-* add "Custom repositories" to HACS, paste the URL of this repository and this time select "Integration" as category
+5. In Home Assistant, go to Settings -> Devices & Services -> Integrations and add "Virtual Keys". A new entry will appear in the sidebar.
 
-* go to HACS -> Integrations, Explore and Download Repositories, search for "virtual keys" and install it
 
-* add to `configuration.yaml`:
+## Use case
 
-```yaml
-virtual_keys:
-
-panel_custom:
-  - name: virtual-keys-panel
-    require_admin: true
-    url_path: virtual-keys
-    sidebar_title: Virtual Keys
-    sidebar_icon: mdi:key-variant
-    module_url: /local/community/virtual-keys/virtual-keys.js
-```
-
-* restart Home Assistant
-
-# Use case
-
-I want to share a "virtual key" with my friends that is valid for a limited time and that they can use to access specific entities in Home Assistant like the fron gate. The key is actually a link to my Home Assistant that can be opened in a browser.
+I want to share a "virtual key" with my friends that is valid for a limited time and that they can use to access specific entities in Home Assistant like the front gate. The key is actually a link to my Home Assistant that can be opened in a browser.
 
 To make this work, I need to make some additional steps (after installing Virtual Keys):
 
-* create a new user in Home Assistant eg. "guest"
+1. Create a new user in Home Assistant, e.g., "guest".
 
-* create a new group eg. "guests" and add the user "guest" to it, and also the devices you want to give access to, eg "cover.front_gate", instructions [here](https://developers.home-assistant.io/blog/2019/03/11/user-permissions/)
+2. Create a new group, e.g., "guests", and add the user "guest" to it, and also the devices you want to give access to, e.g., "cover.front_gate". Instructions [here](https://developers.home-assistant.io/blog/2019/03/11/user-permissions/).
 
-* create a new View (tab) in the default Lovelace UI and add the entities you want to give access to, eg. "cover.front_gate", set the visibility to only show to user "guest".
+3. Create a new View (tab) in the default Lovelace UI and add the entities you want to give access to, e.g., "cover.front_gate", set the visibility to only show to user "guest".
 
-* install [kiosk-mode](https://github.com/NemesisRE/kiosk-mode) and configure it set "kiosk" mode for user "guest"
+4. Install [kiosk-mode](https://github.com/NemesisRE/kiosk-mode) and configure it to set "kiosk" mode for user "guest".
 
-Ths is it, you can now create Virtual Keys and share the link.
+That's it, you can now create Virtual Keys and share the link.

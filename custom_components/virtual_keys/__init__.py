@@ -4,12 +4,56 @@ import voluptuous as vol
 import jwt
 from homeassistant.core import HomeAssistant
 from homeassistant.auth.models import TOKEN_TYPE_LONG_LIVED_ACCESS_TOKEN
-from homeassistant.helpers.typing import ConfigType
-from homeassistant.components import websocket_api
+from homeassistant.components import frontend, panel_custom, websocket_api
 from homeassistant.util import dt as dt_util
+import os
+import aiofiles
 
-DOMAIN = "virtual_keys"
+from .const import DOMAIN, TITLE, NAME
 
+async def async_setup(hass: HomeAssistant, config) -> bool:
+    websocket_api.async_register_command(hass, list_users)
+    websocket_api.async_register_command(hass, create_token)
+    websocket_api.async_register_command(hass, delete_token)
+
+    source_dir = os.path.join(hass.config.path(), "custom_components", DOMAIN, "dist")
+    dest_dir = os.path.join(hass.config.path(), "www", "community", NAME)
+
+    if not os.path.exists(dest_dir):
+        await hass.async_add_executor_job(os.makedirs, dest_dir)
+
+    for filename in await hass.async_add_executor_job(os.listdir, source_dir):
+        source_file = os.path.join(source_dir, filename)
+        if os.path.isfile(source_file):
+            async with aiofiles.open(source_file, "rb") as file:
+                content = await file.read()
+                async with aiofiles.open(os.path.join(dest_dir, filename), "wb") as file:
+                    await file.write(content)
+
+    return True
+
+async def async_setup_entry(hass: HomeAssistant, entry) -> bool:
+    if DOMAIN in hass.data.get("frontend_panels", {}):
+        frontend.async_remove_panel(hass, DOMAIN)
+
+    await panel_custom.async_register_panel(
+        hass,
+        webcomponent_name=NAME,
+        frontend_url_path=DOMAIN,
+        module_url=f"/local/community/{NAME}/{NAME}.js",
+        sidebar_title=TITLE,
+        sidebar_icon="mdi:key-variant",
+        require_admin=True,
+        config={}
+    )
+
+    return True
+
+async def async_unload_entry(hass: HomeAssistant, config_entry):
+    if DOMAIN in hass.data.get("frontend_panels", {}):
+        frontend.async_remove_panel(hass, DOMAIN)
+
+    return True
 
 @websocket_api.websocket_command({vol.Required("type"): "virtual_keys/list_users"})
 @websocket_api.require_admin
@@ -117,13 +161,5 @@ async def delete_token(
                 hass.auth.async_remove_refresh_token(token)
                 connection.send_result(msg["id"], True)
                 return
-    
+
     connection.send_result(msg["id"], False)
-
-
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    websocket_api.async_register_command(hass, list_users)
-    websocket_api.async_register_command(hass, create_token)
-    websocket_api.async_register_command(hass, delete_token)
-
-    return True

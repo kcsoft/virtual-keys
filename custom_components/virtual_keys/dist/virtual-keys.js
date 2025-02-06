@@ -99,7 +99,7 @@ class VirtualKeysPanel extends LitElement {
     this.expireMinutes = Math.max(0, diffInMins)  + '';
     this.expireDate = e.detail.value;
   }
-  
+
   toggleExpire() {
     this.useExpireMinutes = !this.useExpireMinutes;
   }
@@ -385,4 +385,4 @@ class VirtualKeysPanel extends LitElement {
   }
 }
 
-customElements.define('virtual-keys-panel', VirtualKeysPanel);
+customElements.define('virtual-keys', VirtualKeysPanel);
