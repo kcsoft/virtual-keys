@@ -81,7 +81,7 @@ class VirtualKeysPanel extends LitElement {
   }
 
   userChanged(e) {
-    this.user = e.detail.value;
+    this.user = e.target.value
   }
 
   nameChanged(e) {
@@ -218,16 +218,16 @@ class VirtualKeysPanel extends LitElement {
               @input="${this.nameChanged}"
             ></ha-textfield>
 
-            <ha-combo-box
-              .items=${this.users}
-              .itemLabelPath=${'name'}
-              .itemValuePath=${'id'}
+            <ha-select
               .value="1"
               label="User"
               .required=${true}
-              @value-changed=${this.userChanged}
+              @selected=${this.userChanged}
             >
-            </ha-combo-box>
+              ${this.users.map(user => html`
+                <ha-list-item .value="${user.id}">${user.name}</ha-list-item>
+              `)}
+            </ha-select>
 
             <ha-button
               @click=${this.toggleExpire}
