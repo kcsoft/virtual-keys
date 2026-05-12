@@ -211,12 +211,12 @@ class VirtualKeysPanel extends LitElement {
 
         <div class="mdc-top-app-bar--fixed-adjust flex content">
           <div class="filters">
-            <ha-textfield
+            <ha-input
               label="Key name"
               .value="${this.name}"
-              .required=${true}
+              .hint=${false}
               @input="${this.nameChanged}"
-            ></ha-textfield>
+            ></ha-input>
 
             <ha-select
               .value="${this.user}"
@@ -236,12 +236,12 @@ class VirtualKeysPanel extends LitElement {
 
             ${this.useExpireMinutes
             ? html`
-            <ha-textfield
+            <ha-input
               label="Expire (minutes)"
               .type="number"
               .value="${this.expireMinutes}"
               @input="${this.expireMinutesChanged}"
-            ></ha-textfield>
+            ></ha-input>
             `
             : html`
             <ha-selector
@@ -352,10 +352,6 @@ class VirtualKeysPanel extends LitElement {
       app-toolbar [main-title] {
         margin-left: 20px
       }
-      ha-combo-box {
-        padding: 8px 0;
-        width: auto;
-      }
       mwc-button {
         padding: 16px 0;
       }
@@ -375,6 +371,7 @@ class VirtualKeysPanel extends LitElement {
       }
       .filters > * {
         margin-right: 8px;
+        padding: var(--ha-input-padding-bottom, var(--ha-space-2)) 0;
       }
       @media (min-width: 870px) {
         mwc-icon-button {
